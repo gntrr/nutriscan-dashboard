@@ -1,0 +1,51 @@
+---
+import DashboardLayout from '../../../layouts/DashboardLayout.astro';
+import ChildTable from '../../../components/react/ChildTable';
+import { Download, Calendar } from 'lucide-react';
+
+const nakes = Astro.locals.nakes;
+
+if (!nakes) {
+  return Astro.redirect('/login');
+}
+
+const today = new Date().toLocaleDateString('id-ID', { 
+  weekday: 'long', 
+  year: 'numeric', 
+  month: 'long', 
+  day: 'numeric' 
+});
+---
+
+<DashboardLayout title="Data Anak">
+  <div class="space-y-6">
+    <!-- Header with Gradient -->
+    <div class="relative bg-gradient-to-r from-[#4A7C59] via-[#3A6249] to-[#2A4A35] rounded-2xl overflow-hidden shadow-xl">
+      <div class="absolute inset-0 bg-black/5"></div>
+      <div class="relative px-8 py-8">
+        <div class="flex justify-between items-start">
+          <div>
+            <h1 class="text-4xl font-bold text-white mb-2">Data Anak</h1>
+            <p class="text-[#B8E6E0] text-lg flex items-center space-x-2">
+              <Calendar className="w-5 h-5" />
+              <span>{today}</span>
+            </p>
+            <p class="text-white/90 mt-3">
+              📍 Wilayah {nakes.wilayah_puskesmas}
+            </p>
+          </div>
+          <a 
+            href="/dashboard/laporan" 
+            class="flex items-center space-x-2 px-6 py-3 bg-white text-[#4A7C59] font-semibold rounded-xl hover:bg-[#B8E6E0] transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
+          >
+            <Download className="w-5 h-5" />
+            <span>Export Data</span>
+          </a>
+        </div>
+      </div>
+    </div>
+
+    <!-- Table with Filters -->
+    <ChildTable client:load wilayahPuskesmas={nakes.wilayah_puskesmas} />
+  </div>
+</DashboardLayout>

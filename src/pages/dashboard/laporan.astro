@@ -1,0 +1,193 @@
+---
+import DashboardLayout from '../../layouts/DashboardLayout.astro';
+
+const nakes = Astro.locals.nakes;
+
+if (!nakes) {
+  return Astro.redirect('/login');
+}
+---
+
+<DashboardLayout title="Laporan & Export">
+  <div class="space-y-6">
+    <!-- Header -->
+    <div>
+      <h1 class="text-3xl font-bold text-gray-900">Laporan & Export Data</h1>
+      <p class="text-gray-600 mt-2">
+        Export data anak untuk pelaporan dan analisis
+      </p>
+    </div>
+
+    <!-- Export Options -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <!-- Export Semua Data -->
+      <div class="card">
+        <div class="flex items-start space-x-4">
+          <div class="p-3 bg-[#B8E6E0] rounded-lg">
+            <svg class="w-8 h-8 text-[#4A7C59]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+          </div>
+          <div class="flex-1">
+            <h2 class="text-lg font-bold mb-2">Export Semua Data</h2>
+            <p class="text-sm text-gray-600 mb-4">
+              Download semua data anak di wilayah Anda dalam format CSV
+            </p>
+            <a
+              href="/api/export/csv"
+              download
+              class="btn-primary inline-block"
+            >
+              Download CSV
+            </a>
+          </div>
+        </div>
+      </div>
+
+      <!-- Export Berdasarkan Status Gizi -->
+      <div class="card">
+        <div class="flex items-start space-x-4">
+          <div class="p-3 bg-red-50 rounded-lg">
+            <svg class="w-8 h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+          </div>
+          <div class="flex-1">
+            <h2 class="text-lg font-bold mb-2">Export Gizi Buruk & Kurang</h2>
+            <p class="text-sm text-gray-600 mb-4">
+              Download data anak dengan status gizi buruk dan kurang
+            </p>
+            <a
+              href="/api/export/csv?priority=true"
+              download
+              class="btn-danger inline-block"
+            >
+              Download CSV
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Filter Export -->
+    <div class="card">
+      <h2 class="text-xl font-bold mb-4">Export dengan Filter</h2>
+      <form id="exportForm" class="space-y-4">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">
+              Status Gizi
+            </label>
+            <select name="status" class="input-field">
+              <option value="">Semua Status</option>
+              <option value="buruk">Gizi Buruk</option>
+              <option value="kurang">Gizi Kurang</option>
+              <option value="baik">Gizi Baik</option>
+              <option value="lebih">Gizi Lebih</option>
+            </select>
+          </div>
+
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">
+              Jenis Kelamin
+            </label>
+            <select name="gender" class="input-field">
+              <option value="">Semua</option>
+              <option value="male">Laki-laki</option>
+              <option value="female">Perempuan</option>
+            </select>
+          </div>
+
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">
+              Usia Minimum (bulan)
+            </label>
+            <input
+              type="number"
+              name="minAge"
+              placeholder="0"
+              min="0"
+              max="60"
+              class="input-field"
+            />
+          </div>
+
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">
+              Usia Maximum (bulan)
+            </label>
+            <input
+              type="number"
+              name="maxAge"
+              placeholder="60"
+              min="0"
+              max="60"
+              class="input-field"
+            />
+          </div>
+        </div>
+
+        <div class="flex space-x-4">
+          <button type="submit" class="btn-primary">
+            Export dengan Filter
+          </button>
+          <button type="button" onclick="document.getElementById('exportForm').reset()" class="btn-secondary">
+            Reset Filter
+          </button>
+        </div>
+      </form>
+    </div>
+
+    <!-- Info -->
+    <div class="card bg-blue-50 border-blue-200">
+      <div class="flex items-start space-x-3">
+        <svg class="w-6 h-6 text-blue-600 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+        <div>
+          <h3 class="font-semibold text-blue-900 mb-2">Informasi Export</h3>
+          <ul class="text-sm text-blue-800 space-y-1">
+            <li>• File CSV dapat dibuka di Microsoft Excel, Google Sheets, atau aplikasi spreadsheet lainnya</li>
+            <li>• Data yang di-export hanya data anak di wilayah: <strong>{nakes.wilayah_puskesmas}</strong></li>
+            <li>• Export mencakup: Nama, Usia, Gender, BB, TB, Status Gizi, dan informasi orang tua</li>
+            <li>• Untuk keamanan data, harap simpan file dengan aman dan jangan bagikan tanpa izin</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- Statistics Summary -->
+    <div class="card">
+      <h2 class="text-xl font-bold mb-4">Statistik Wilayah</h2>
+      <div class="text-sm text-gray-600">
+        <p class="mb-2"><strong>Wilayah:</strong> {nakes.wilayah_puskesmas}</p>
+        <p class="mb-2"><strong>Kota:</strong> {nakes.kota}</p>
+        <p class="mb-2"><strong>Provinsi:</strong> {nakes.provinsi}</p>
+        <p class="mt-4">
+          <a href="/dashboard" class="text-[#4A7C59] hover:text-[#3A6249] font-medium">
+            Lihat Dashboard untuk statistik lengkap →
+          </a>
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const form = document.getElementById('exportForm');
+    form?.addEventListener('submit', (e) => {
+      e.preventDefault();
+      
+      const formData = new FormData(form as HTMLFormElement);
+      const params = new URLSearchParams();
+      
+      for (const [key, value] of formData.entries()) {
+        if (value) {
+          params.append(key, value as string);
+        }
+      }
+      
+      const url = `/api/export/csv${params.toString() ? '?' + params.toString() : ''}`;
+      window.location.href = url;
+    });
+  </script>
+</DashboardLayout>

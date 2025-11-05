@@ -1,0 +1,235 @@
+---
+import DashboardLayout from '../../../layouts/DashboardLayout.astro';
+import { supabase } from '../../../lib/supabase';
+
+const nakes = Astro.locals.nakes;
+
+if (!nakes || nakes.role !== 'admin') {
+  return Astro.redirect('/dashboard?error=forbidden');
+}
+
+// Get all nakes accounts
+const { data: allNakes } = await supabase
+  .from('nakes_accounts')
+  .select('*')
+  .order('created_at', { ascending: false });
+
+// Separate active, pending, and inactive
+const activeNakes = allNakes?.filter(n => n.is_active && n.approved_at) || [];
+const pendingNakes = allNakes?.filter(n => !n.approved_at) || [];
+const inactiveNakes = allNakes?.filter(n => !n.is_active && n.approved_at) || [];
+---
+
+<DashboardLayout title="Kelola Nakes">
+  <div class="space-y-8">
+    <!-- Header -->
+    <div>
+      <h1 class="text-3xl font-bold text-gray-900">Kelola Akun Tenaga Kesehatan</h1>
+      <p class="text-gray-600 mt-2">
+        Manage akun nakes, approve pendaftaran baru, dan kelola akses
+      </p>
+    </div>
+
+    <!-- Summary Cards -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div class="card bg-green-50 border-green-200">
+        <h3 class="text-sm font-medium text-green-600 mb-2">Aktif</h3>
+        <p class="text-3xl font-bold text-green-700">{activeNakes.length}</p>
+      </div>
+      <div class="card bg-yellow-50 border-yellow-200">
+        <h3 class="text-sm font-medium text-yellow-600 mb-2">Menunggu Approval</h3>
+        <p class="text-3xl font-bold text-yellow-700">{pendingNakes.length}</p>
+      </div>
+      <div class="card bg-gray-50 border-gray-200">
+        <h3 class="text-sm font-medium text-gray-600 mb-2">Nonaktif</h3>
+        <p class="text-3xl font-bold text-gray-700">{inactiveNakes.length}</p>
+      </div>
+    </div>
+
+    <!-- Pending Approvals -->
+    {pendingNakes.length > 0 && (
+      <div class="card border-2 border-yellow-300">
+        <div class="flex items-center justify-between mb-4">
+          <h2 class="text-xl font-bold flex items-center space-x-2">
+            <svg class="w-6 h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+            <span>Menunggu Persetujuan ({pendingNakes.length})</span>
+          </h2>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="min-w-full divide-y divide-gray-200">
+            <thead class="bg-gray-50">
+              <tr>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Nama</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Jabatan</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Wilayah</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Kota</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Tgl Daftar</th>
+                <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Aksi</th>
+              </tr>
+            </thead>
+            <tbody class="bg-white divide-y divide-gray-200">
+              {pendingNakes.map((n) => (
+                <tr key={n.id}>
+                  <td class="px-6 py-4 whitespace-nowrap">
+                    <div class="text-sm font-medium text-gray-900">{n.nama_lengkap}</div>
+                    <div class="text-xs text-gray-500">{n.nip || 'No NIP'}</div>
+                  </td>
+                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                    {n.jabatan}
+                  </td>
+                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    {n.wilayah_puskesmas}
+                  </td>
+                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                    {n.kota}
+                  </td>
+                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                    {new Date(n.created_at).toLocaleDateString('id-ID')}
+                  </td>
+                  <td class="px-6 py-4 whitespace-nowrap text-right text-sm space-x-2">
+                    <form method="POST" action="/api/admin/nakes/approve" class="inline">
+                      <input type="hidden" name="nakes_id" value={n.id} />
+                      <button type="submit" class="text-green-600 hover:text-green-900 font-medium">
+                        ✓ Approve
+                      </button>
+                    </form>
+                    <form method="POST" action="/api/admin/nakes/reject" class="inline">
+                      <input type="hidden" name="nakes_id" value={n.id} />
+                      <button type="submit" class="text-red-600 hover:text-red-900 font-medium">
+                        ✗ Tolak
+                      </button>
+                    </form>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    )}
+
+    <!-- Active Nakes -->
+    <div class="card">
+      <h2 class="text-xl font-bold mb-4">Nakes Aktif ({activeNakes.length})</h2>
+      <div class="overflow-x-auto">
+        <table class="min-w-full divide-y divide-gray-200">
+          <thead class="bg-gray-50">
+            <tr>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Nama</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Jabatan</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Wilayah</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Kota/Provinsi</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Role</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Tgl Approved</th>
+              <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Aksi</th>
+            </tr>
+          </thead>
+          <tbody class="bg-white divide-y divide-gray-200">
+            {activeNakes.map((n) => (
+              <tr key={n.id}>
+                <td class="px-6 py-4 whitespace-nowrap">
+                  <div class="text-sm font-medium text-gray-900">{n.nama_lengkap}</div>
+                  <div class="text-xs text-gray-500">{n.nip || 'No NIP'}</div>
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                  {n.jabatan}
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                  {n.wilayah_puskesmas}
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                  {n.kota}, {n.provinsi}
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap">
+                  <span class={`px-2 py-1 text-xs font-semibold rounded ${
+                    n.role === 'admin' ? 'bg-yellow-100 text-yellow-800' : 'bg-blue-100 text-blue-800'
+                  }`}>
+                    {n.role === 'admin' ? 'ADMIN' : 'NAKES'}
+                  </span>
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                  {n.approved_at ? new Date(n.approved_at).toLocaleDateString('id-ID') : '-'}
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap text-right text-sm">
+                  {n.id !== nakes.id && (
+                    <form method="POST" action="/api/admin/nakes/deactivate" class="inline">
+                      <input type="hidden" name="nakes_id" value={n.id} />
+                      <button type="submit" class="text-red-600 hover:text-red-900 font-medium">
+                        Nonaktifkan
+                      </button>
+                    </form>
+                  )}
+                  {n.id === nakes.id && (
+                    <span class="text-gray-400 text-xs">Akun Anda</span>
+                  )}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Inactive Nakes -->
+    {inactiveNakes.length > 0 && (
+      <div class="card bg-gray-50">
+        <h2 class="text-xl font-bold mb-4 text-gray-700">Nakes Nonaktif ({inactiveNakes.length})</h2>
+        <div class="overflow-x-auto">
+          <table class="min-w-full divide-y divide-gray-200">
+            <thead class="bg-gray-100">
+              <tr>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Nama</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Jabatan</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Wilayah</th>
+                <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Aksi</th>
+              </tr>
+            </thead>
+            <tbody class="bg-white divide-y divide-gray-200">
+              {inactiveNakes.map((n) => (
+                <tr key={n.id} class="opacity-60">
+                  <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                    {n.nama_lengkap}
+                  </td>
+                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                    {n.jabatan}
+                  </td>
+                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    {n.wilayah_puskesmas}
+                  </td>
+                  <td class="px-6 py-4 whitespace-nowrap text-right text-sm">
+                    <form method="POST" action="/api/admin/nakes/activate" class="inline">
+                      <input type="hidden" name="nakes_id" value={n.id} />
+                      <button type="submit" class="text-green-600 hover:text-green-900 font-medium">
+                        Aktifkan Kembali
+                      </button>
+                    </form>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    )}
+
+    <!-- Info -->
+    <div class="card bg-blue-50 border-blue-200">
+      <div class="flex items-start space-x-3">
+        <svg class="w-6 h-6 text-blue-600 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+        <div>
+          <h3 class="font-semibold text-blue-900 mb-2">Catatan Penting</h3>
+          <ul class="text-sm text-blue-800 space-y-1">
+            <li>• Hanya approve akun nakes yang sudah terverifikasi identitasnya</li>
+            <li>• Nonaktifkan akun akan mencabut akses ke dashboard, namun data tidak dihapus</li>
+            <li>• Akun yang di-reject akan dihapus permanen dari sistem</li>
+            <li>• Pastikan wilayah puskesmas sesuai dengan data registrasi</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+</DashboardLayout>

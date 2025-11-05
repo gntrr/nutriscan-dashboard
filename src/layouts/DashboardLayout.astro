@@ -1,0 +1,132 @@
+---
+import '../styles/global.css';
+import { Home, Users, FileText, BarChart3, UserCheck, LogOut } from 'lucide-react';
+
+interface Props {
+  title: string;
+}
+
+const { title } = Astro.props;
+const nakes = Astro.locals.nakes;
+const user = Astro.locals.user;
+
+const currentPath = Astro.url.pathname;
+---
+
+<!DOCTYPE html>
+<html lang="id">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{title} - NutriScan Nakes Dashboard</title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  </head>
+  <body class="bg-gray-50">
+    <div class="flex min-h-screen">
+      <!-- Sidebar -->
+      <aside class="w-64 bg-[#4A7C59] text-white flex flex-col fixed h-full">
+        <div class="p-6 border-b border-[#3A6249]">
+          <h1 class="text-2xl font-bold">NutriScan</h1>
+          <p class="text-sm text-[#B8E6E0] mt-1">Dashboard Nakes</p>
+        </div>
+
+        <nav class="flex-1 px-4 py-6 space-y-2">
+          <a
+            href="/dashboard"
+            class={`flex items-center space-x-3 px-4 py-3 rounded-lg transition-colors ${
+              currentPath === '/dashboard'
+                ? 'bg-[#3A6249] text-white'
+                : 'text-[#B8E6E0] hover:bg-[#3A6249] hover:text-white'
+            }`}
+          >
+            <Home className="w-5 h-5" />
+            <span>Dashboard</span>
+          </a>
+
+          <a
+            href="/dashboard/anak"
+            class={`flex items-center space-x-3 px-4 py-3 rounded-lg transition-colors ${
+              currentPath.startsWith('/dashboard/anak')
+                ? 'bg-[#3A6249] text-white'
+                : 'text-[#B8E6E0] hover:bg-[#3A6249] hover:text-white'
+            }`}
+          >
+            <Users className="w-5 h-5" />
+            <span>Data Anak</span>
+          </a>
+
+          <a
+            href="/dashboard/laporan"
+            class={`flex items-center space-x-3 px-4 py-3 rounded-lg transition-colors ${
+              currentPath === '/dashboard/laporan'
+                ? 'bg-[#3A6249] text-white'
+                : 'text-[#B8E6E0] hover:bg-[#3A6249] hover:text-white'
+            }`}
+          >
+            <FileText className="w-5 h-5" />
+            <span>Laporan</span>
+          </a>
+
+          {nakes?.role === 'admin' && (
+            <>
+              <hr class="my-4 border-[#3A6249]" />
+              <p class="px-4 text-xs text-[#B8E6E0] uppercase tracking-wider mb-2">Admin</p>
+              
+              <a
+                href="/dashboard/admin"
+                class={`flex items-center space-x-3 px-4 py-3 rounded-lg transition-colors ${
+                  currentPath === '/dashboard/admin'
+                    ? 'bg-[#3A6249] text-white'
+                    : 'text-[#B8E6E0] hover:bg-[#3A6249] hover:text-white'
+                }`}
+              >
+                <BarChart3 className="w-5 h-5" />
+                <span>Analytics</span>
+              </a>
+
+              <a
+                href="/dashboard/admin/nakes"
+                class={`flex items-center space-x-3 px-4 py-3 rounded-lg transition-colors ${
+                  currentPath === '/dashboard/admin/nakes'
+                    ? 'bg-[#3A6249] text-white'
+                    : 'text-[#B8E6E0] hover:bg-[#3A6249] hover:text-white'
+                }`}
+              >
+                <UserCheck className="w-5 h-5" />
+                <span>Kelola Nakes</span>
+              </a>
+            </>
+          )}
+        </nav>
+
+        <!-- User Info & Logout -->
+        <div class="p-4 border-t border-[#3A6249]">
+          <div class="mb-4">
+            <p class="text-sm font-semibold">{nakes?.nama_lengkap}</p>
+            <p class="text-xs text-[#B8E6E0]">{nakes?.jabatan}</p>
+            <p class="text-xs text-[#B8E6E0] mt-1">{nakes?.wilayah_puskesmas}</p>
+            {nakes?.role === 'admin' && (
+              <span class="inline-block mt-2 px-2 py-1 bg-yellow-500 text-xs font-bold rounded">
+                ADMIN
+              </span>
+            )}
+          </div>
+          <form action="/api/auth/logout" method="POST">
+            <button
+              type="submit"
+              class="w-full flex items-center justify-center space-x-2 px-4 py-2 bg-red-600 hover:bg-red-700 rounded-lg transition-colors"
+            >
+              <LogOut className="w-4 h-4" />
+              <span>Logout</span>
+            </button>
+          </form>
+        </div>
+      </aside>
+
+      <!-- Main Content -->
+      <main class="flex-1 ml-64 p-8">
+        <slot />
+      </main>
+    </div>
+  </body>
+</html>

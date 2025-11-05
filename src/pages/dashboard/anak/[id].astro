@@ -1,0 +1,267 @@
+---
+import DashboardLayout from '../../../layouts/DashboardLayout.astro';
+import { supabase } from '../../../lib/supabase';
+
+const nakes = Astro.locals.nakes;
+const { id } = Astro.params;
+
+if (!nakes) {
+  return Astro.redirect('/login');
+}
+
+if (!id) {
+  return Astro.redirect('/dashboard/anak');
+}
+
+// Get child data
+const { data: childData, error: childError } = await supabase
+  .from('child_data')
+  .select('*')
+  .eq('id', id)
+  .single();
+
+if (childError || !childData) {
+  return Astro.redirect('/dashboard/anak?error=not_found');
+}
+
+// Get user profile
+const { data: userProfile } = await supabase
+  .from('user_profiles')
+  .select('*')
+  .eq('user_id', childData.user_id)
+  .single();
+
+// Check if nakes has access to this child's data (wilayah check)
+if (nakes.role !== 'admin' && userProfile?.wilayah_puskesmas !== nakes.wilayah_puskesmas) {
+  return Astro.redirect('/dashboard/anak?error=forbidden');
+}
+
+// Get recipe recommendations
+const { data: recipes } = await supabase
+  .from('recipe_recommendations')
+  .select('*')
+  .eq('user_id', childData.user_id)
+  .order('created_at', { ascending: false })
+  .limit(1);
+
+// Get manual menus
+const { data: manualMenus } = await supabase
+  .from('manual_menus')
+  .select('*')
+  .eq('user_id', childData.user_id)
+  .order('created_at', { ascending: false })
+  .limit(7);
+
+const formatAge = (months: number) => {
+  const years = Math.floor(months / 12);
+  const remainingMonths = Math.round(months % 12);
+  return { years, months: remainingMonths };
+};
+
+const age = formatAge(childData.age_months);
+
+const getStatusColor = (status: string) => {
+  const lower = status?.toLowerCase() || '';
+  if (lower.includes('buruk')) return 'text-red-600 bg-red-50 border-red-200';
+  if (lower.includes('kurang')) return 'text-orange-600 bg-orange-50 border-orange-200';
+  if (lower.includes('lebih') || lower.includes('obesitas')) return 'text-blue-600 bg-blue-50 border-blue-200';
+  return 'text-green-600 bg-green-50 border-green-200';
+};
+---
+
+<DashboardLayout title={`Detail - ${childData.child_name || 'Anak'}`}>
+  <div class="space-y-6">
+    <!-- Header dengan tombol back -->
+    <div class="flex items-center space-x-4">
+      <a 
+        href="/dashboard/anak" 
+        class="text-[#4A7C59] hover:text-[#3A6249] flex items-center space-x-2"
+      >
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+        </svg>
+        <span>Kembali</span>
+      </a>
+      <div class="h-6 w-px bg-gray-300"></div>
+      <h1 class="text-3xl font-bold text-gray-900">Detail Anak</h1>
+    </div>
+
+    <!-- Data Orang Tua & Anak -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <!-- Data Identitas -->
+      <div class="card">
+        <h2 class="text-xl font-bold mb-4 flex items-center space-x-2">
+          <svg class="w-6 h-6 text-[#4A7C59]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+          </svg>
+          <span>Data Identitas</span>
+        </h2>
+        <dl class="space-y-3">
+          <div>
+            <dt class="text-sm font-medium text-gray-500">Nama Balita</dt>
+            <dd class="text-lg font-semibold text-gray-900">{userProfile?.nama_balita || '-'}</dd>
+          </div>
+          <div>
+            <dt class="text-sm font-medium text-gray-500">Nama Ibu</dt>
+            <dd class="text-base text-gray-900">{userProfile?.nama_ibu || '-'}</dd>
+          </div>
+          <div>
+            <dt class="text-sm font-medium text-gray-500">Nama Ayah</dt>
+            <dd class="text-base text-gray-900">{userProfile?.nama_ayah || '-'}</dd>
+          </div>
+          <div>
+            <dt class="text-sm font-medium text-gray-500">Alamat</dt>
+            <dd class="text-base text-gray-900">{userProfile?.alamat || '-'}</dd>
+          </div>
+          <div>
+            <dt class="text-sm font-medium text-gray-500">Wilayah Puskesmas</dt>
+            <dd class="text-base text-gray-900">{userProfile?.wilayah_puskesmas || '-'}</dd>
+          </div>
+          <div>
+            <dt class="text-sm font-medium text-gray-500">Kota</dt>
+            <dd class="text-base text-gray-900">{userProfile?.kota || '-'}</dd>
+          </div>
+        </dl>
+      </div>
+
+      <!-- Data Antropometri -->
+      <div class="card">
+        <h2 class="text-xl font-bold mb-4 flex items-center space-x-2">
+          <svg class="w-6 h-6 text-[#4A7C59]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+          </svg>
+          <span>Data Antropometri</span>
+        </h2>
+        <dl class="space-y-3">
+          <div>
+            <dt class="text-sm font-medium text-gray-500">Usia</dt>
+            <dd class="text-lg font-semibold text-gray-900">
+              {age.years} tahun {age.months} bulan
+              <span class="text-sm text-gray-500 ml-2">({childData.age_months} bulan)</span>
+            </dd>
+          </div>
+          <div>
+            <dt class="text-sm font-medium text-gray-500">Jenis Kelamin</dt>
+            <dd class="text-base text-gray-900">
+              {childData.gender === 'male' ? 'Laki-laki' : 'Perempuan'}
+            </dd>
+          </div>
+          <div>
+            <dt class="text-sm font-medium text-gray-500">Tinggi Badan</dt>
+            <dd class="text-lg font-semibold text-gray-900">{childData.height_cm} cm</dd>
+          </div>
+          <div>
+            <dt class="text-sm font-medium text-gray-500">Berat Badan</dt>
+            <dd class="text-lg font-semibold text-gray-900">{childData.weight_kg} kg</dd>
+          </div>
+          <div>
+            <dt class="text-sm font-medium text-gray-500">Terakhir Checkup</dt>
+            <dd class="text-base text-gray-900">
+              {new Date(childData.updated_at).toLocaleDateString('id-ID', {
+                weekday: 'long',
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric',
+              })}
+            </dd>
+          </div>
+        </dl>
+      </div>
+    </div>
+
+    <!-- Status Gizi -->
+    <div class="card">
+      <h2 class="text-xl font-bold mb-6 flex items-center space-x-2">
+        <svg class="w-6 h-6 text-[#4A7C59]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+        </svg>
+        <span>Status Gizi</span>
+      </h2>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <!-- BB/U -->
+        <div class={`border-2 rounded-lg p-4 ${getStatusColor(childData.kategori_status_gizi)}`}>
+          <h3 class="text-sm font-medium mb-2">BB/U (Berat Badan menurut Umur)</h3>
+          <p class="text-2xl font-bold mb-1">{childData.z_score_bbu?.toFixed(2) || '-'}</p>
+          <p class="text-xs">Z-Score</p>
+          <p class="text-sm font-semibold mt-2">{childData.ambang_batas_z_score || '-'}</p>
+        </div>
+
+        <!-- PB/U atau TB/U -->
+        <div class={`border-2 rounded-lg p-4 ${getStatusColor(childData.kategori_status_gizi)}`}>
+          <h3 class="text-sm font-medium mb-2">
+            {childData.age_months < 24 ? 'PB/U' : 'TB/U'}
+            <span class="text-xs block">(Tinggi menurut Umur)</span>
+          </h3>
+          <p class="text-2xl font-bold mb-1">{childData.z_score_pbu?.toFixed(2) || '-'}</p>
+          <p class="text-xs">Z-Score</p>
+          <p class="text-sm font-semibold mt-2">{childData.ambang_batas_z_score || '-'}</p>
+        </div>
+
+        <!-- BB/PB atau BB/TB -->
+        <div class={`border-2 rounded-lg p-4 ${getStatusColor(childData.kategori_status_gizi)}`}>
+          <h3 class="text-sm font-medium mb-2">
+            {childData.age_months < 24 ? 'BB/PB' : 'BB/TB'}
+            <span class="text-xs block">(Berat menurut Tinggi)</span>
+          </h3>
+          <p class="text-2xl font-bold mb-1">{childData.z_score_bbpb?.toFixed(2) || '-'}</p>
+          <p class="text-xs">Z-Score</p>
+          <p class="text-sm font-semibold mt-2">{childData.ambang_batas_z_score || '-'}</p>
+        </div>
+
+        <!-- IMT/U -->
+        <div class={`border-2 rounded-lg p-4 ${getStatusColor(childData.kategori_status_gizi)}`}>
+          <h3 class="text-sm font-medium mb-2">IMT/U <span class="text-xs block">(IMT menurut Umur)</span></h3>
+          <p class="text-2xl font-bold mb-1">{childData.z_score_imt?.toFixed(2) || '-'}</p>
+          <p class="text-xs">Z-Score</p>
+          <p class="text-sm font-semibold mt-2">{childData.kategori_status_gizi || '-'}</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Rekomendasi Menu -->
+    {recipes && recipes.length > 0 && (
+      <div class="card">
+        <h2 class="text-xl font-bold mb-4 flex items-center space-x-2">
+          <svg class="w-6 h-6 text-[#4A7C59]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+          </svg>
+          <span>Rekomendasi Menu (AI)</span>
+        </h2>
+        {recipes.map((recipe) => (
+          <div key={recipe.id} class="space-y-3">
+            <p class="text-sm text-gray-600">
+              Dibuat: {new Date(recipe.created_at).toLocaleDateString('id-ID')}
+            </p>
+            <div class="bg-gray-50 rounded-lg p-4">
+              <pre class="whitespace-pre-wrap text-sm">{recipe.recommendation_text}</pre>
+            </div>
+          </div>
+        ))}
+      </div>
+    )}
+
+    <!-- Manual Menus -->
+    {manualMenus && manualMenus.length > 0 && (
+      <div class="card">
+        <h2 class="text-xl font-bold mb-4 flex items-center space-x-2">
+          <svg class="w-6 h-6 text-[#4A7C59]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+          </svg>
+          <span>Menu Manual (Input Orang Tua)</span>
+        </h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {manualMenus.map((menu) => (
+            <div key={menu.id} class="border border-gray-200 rounded-lg p-4">
+              <h3 class="font-semibold text-gray-900 mb-2">{menu.meal_type}</h3>
+              <p class="text-sm text-gray-600">{menu.menu_text}</p>
+              <p class="text-xs text-gray-400 mt-2">
+                {new Date(menu.created_at).toLocaleDateString('id-ID')}
+              </p>
+            </div>
+          ))}
+        </div>
+      </div>
+    )}
+  </div>
+</DashboardLayout>

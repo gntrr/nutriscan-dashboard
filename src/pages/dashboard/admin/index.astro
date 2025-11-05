@@ -1,0 +1,261 @@
+---
+import DashboardLayout from '../../../layouts/DashboardLayout.astro';
+import StatsCard from '../../../components/react/StatsCard';
+import { supabase } from '../../../lib/supabase';
+
+const nakes = Astro.locals.nakes;
+
+if (!nakes || nakes.role !== 'admin') {
+  return Astro.redirect('/dashboard?error=forbidden');
+}
+
+// Get Indonesia-wide stats
+const { data: allStats } = await supabase
+  .from('nakes_dashboard_overview')
+  .select('*');
+
+// Calculate totals
+const totalAnak = allStats?.reduce((sum, stat) => sum + (stat.total_anak || 0), 0) || 0;
+const totalGiziBuruk = allStats?.reduce((sum, stat) => sum + (stat.gizi_buruk || 0), 0) || 0;
+const totalGiziKurang = allStats?.reduce((sum, stat) => sum + (stat.gizi_kurang || 0), 0) || 0;
+const totalGiziBaik = allStats?.reduce((sum, stat) => sum + (stat.gizi_baik || 0), 0) || 0;
+const totalGiziLebih = allStats?.reduce((sum, stat) => sum + (stat.gizi_lebih || 0), 0) || 0;
+
+// Get top 10 wilayah with most gizi buruk
+const top10GiziBuruk = allStats
+  ?.filter(stat => stat.gizi_buruk > 0)
+  .sort((a, b) => (b.gizi_buruk || 0) - (a.gizi_buruk || 0))
+  .slice(0, 10) || [];
+
+// Get stats by provinsi
+const statsByProvinsi = allStats?.reduce((acc: any, stat) => {
+  const provinsi = stat.provinsi || 'Unknown';
+  if (!acc[provinsi]) {
+    acc[provinsi] = {
+      total_anak: 0,
+      gizi_buruk: 0,
+      gizi_kurang: 0,
+      gizi_baik: 0,
+      gizi_lebih: 0,
+      jumlah_puskesmas: 0,
+    };
+  }
+  acc[provinsi].total_anak += stat.total_anak || 0;
+  acc[provinsi].gizi_buruk += stat.gizi_buruk || 0;
+  acc[provinsi].gizi_kurang += stat.gizi_kurang || 0;
+  acc[provinsi].gizi_baik += stat.gizi_baik || 0;
+  acc[provinsi].gizi_lebih += stat.gizi_lebih || 0;
+  acc[provinsi].jumlah_puskesmas += 1;
+  return acc;
+}, {}) || {};
+
+const provinsiStats = Object.entries(statsByProvinsi)
+  .map(([provinsi, stats]: [string, any]) => ({
+    provinsi,
+    ...stats,
+  }))
+  .sort((a, b) => b.total_anak - a.total_anak);
+
+// Get total nakes
+const { count: totalNakes } = await supabase
+  .from('nakes_accounts')
+  .select('*', { count: 'exact', head: true })
+  .eq('is_active', true);
+
+// Get pending approvals
+const { count: pendingApprovals } = await supabase
+  .from('nakes_accounts')
+  .select('*', { count: 'exact', head: true })
+  .is('approved_at', null);
+---
+
+<DashboardLayout title="Admin Dashboard">
+  <div class="space-y-8">
+    <!-- Header -->
+    <div class="flex justify-between items-center">
+      <div>
+        <h1 class="text-3xl font-bold text-gray-900">Admin Dashboard</h1>
+        <p class="text-gray-600 mt-2">
+          Analytics dan monitoring untuk seluruh Indonesia
+        </p>
+      </div>
+      <span class="px-4 py-2 bg-yellow-500 text-white font-bold rounded-lg">
+        ADMIN ACCESS
+      </span>
+    </div>
+
+    <!-- Overall Stats -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
+      <StatsCard
+        client:load
+        title="Total Anak"
+        value={totalAnak}
+        color="primary"
+        icon={
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+          </svg>
+        }
+      />
+
+      <StatsCard
+        client:load
+        title="Gizi Buruk"
+        value={totalGiziBuruk}
+        color="red"
+        icon={
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+          </svg>
+        }
+      />
+
+      <StatsCard
+        client:load
+        title="Gizi Kurang"
+        value={totalGiziKurang}
+        color="yellow"
+        icon={
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+        }
+      />
+
+      <StatsCard
+        client:load
+        title="Gizi Baik"
+        value={totalGiziBaik}
+        color="green"
+        icon={
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+        }
+      />
+
+      <StatsCard
+        client:load
+        title="Total Nakes"
+        value={totalNakes || 0}
+        color="blue"
+        icon={
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+          </svg>
+        }
+      />
+    </div>
+
+    <!-- Alerts -->
+    {pendingApprovals && pendingApprovals > 0 && (
+      <div class="card bg-yellow-50 border-yellow-200">
+        <div class="flex items-center space-x-3">
+          <svg class="w-6 h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+          </svg>
+          <div class="flex-1">
+            <p class="font-semibold text-yellow-900">
+              Ada {pendingApprovals} akun nakes menunggu persetujuan
+            </p>
+            <a href="/dashboard/admin/nakes" class="text-yellow-700 hover:text-yellow-900 text-sm font-medium">
+              Lihat & Setujui →
+            </a>
+          </div>
+        </div>
+      </div>
+    )}
+
+    <!-- Top 10 Wilayah dengan Gizi Buruk Terbanyak -->
+    <div class="card">
+      <h2 class="text-xl font-bold mb-4">Top 10 Wilayah dengan Gizi Buruk Terbanyak</h2>
+      <div class="overflow-x-auto">
+        <table class="min-w-full divide-y divide-gray-200">
+          <thead class="bg-gray-50">
+            <tr>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Rank</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Wilayah Puskesmas</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Kota</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Provinsi</th>
+              <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Gizi Buruk</th>
+              <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Total Anak</th>
+              <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">% Buruk</th>
+            </tr>
+          </thead>
+          <tbody class="bg-white divide-y divide-gray-200">
+            {top10GiziBuruk.map((stat, index) => (
+              <tr>
+                <td class="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-900">
+                  #{index + 1}
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                  {stat.wilayah_puskesmas}
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                  {stat.kota}
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                  {stat.provinsi}
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap text-right">
+                  <span class="badge-gizi-buruk">
+                    {stat.gizi_buruk}
+                  </span>
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">
+                  {stat.total_anak}
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm font-semibold text-red-600 text-right">
+                  {((stat.gizi_buruk / stat.total_anak) * 100).toFixed(1)}%
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Stats by Provinsi -->
+    <div class="card">
+      <h2 class="text-xl font-bold mb-4">Statistik per Provinsi</h2>
+      <div class="overflow-x-auto">
+        <table class="min-w-full divide-y divide-gray-200">
+          <thead class="bg-gray-50">
+            <tr>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Provinsi</th>
+              <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Puskesmas</th>
+              <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Total Anak</th>
+              <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Gizi Buruk</th>
+              <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Gizi Kurang</th>
+              <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Gizi Baik</th>
+            </tr>
+          </thead>
+          <tbody class="bg-white divide-y divide-gray-200">
+            {provinsiStats.map((stat) => (
+              <tr>
+                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                  {stat.provinsi}
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600 text-right">
+                  {stat.jumlah_puskesmas}
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-900 text-right">
+                  {stat.total_anak}
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-red-600 text-right">
+                  {stat.gizi_buruk}
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-orange-600 text-right">
+                  {stat.gizi_kurang}
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-green-600 text-right">
+                  {stat.gizi_baik}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</DashboardLayout>
