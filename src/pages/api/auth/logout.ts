@@ -1,9 +1,10 @@
 import type { APIRoute } from 'astro';
-import { logoutNakes } from '../../../lib/auth';
+import { createServerSupabaseClient } from '../../../lib/supabase';
 
-export const POST: APIRoute = async ({ redirect }) => {
+export const POST: APIRoute = async ({ redirect, cookies }) => {
   try {
-    await logoutNakes();
+    const supabase = createServerSupabaseClient(cookies);
+    await supabase.auth.signOut();
     return redirect('/login');
   } catch (error) {
     return redirect('/login?error=logout_failed');

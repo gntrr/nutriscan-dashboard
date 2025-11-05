@@ -1,5 +1,5 @@
 import { defineMiddleware } from 'astro:middleware';
-import { supabase } from './lib/supabase';
+import { createServerSupabaseClient } from './lib/supabase';
 
 export const onRequest = defineMiddleware(async (context, next) => {
   const { pathname } = context.url;
@@ -10,19 +10,30 @@ export const onRequest = defineMiddleware(async (context, next) => {
     return next();
   }
 
-  // API routes - let them handle their own auth
-  if (pathname.startsWith('/api/')) {
+  // Skip auth for auth API routes only
+  if (pathname.startsWith('/api/auth/')) {
     return next();
   }
 
-  // Protected routes (require nakes role)
-  if (pathname.startsWith('/dashboard')) {
+  // Protected routes & API routes (require nakes role)
+  if (pathname.startsWith('/dashboard') || pathname.startsWith('/api/')) {
     try {
+      // Create supabase client with cookie support
+      const supabase = createServerSupabaseClient(context.cookies);
+      
       // Get session dari supabase
       const { data: { session }, error: sessionError } = await supabase.auth.getSession();
 
-      // Redirect to login if no session
+      // Handle unauthorized
       if (sessionError || !session || !session.user) {
+        // For API routes, return JSON error
+        if (pathname.startsWith('/api/')) {
+          return new Response(
+            JSON.stringify({ error: 'Unauthorized - No session' }),
+            { status: 401, headers: { 'Content-Type': 'application/json' } }
+          );
+        }
+        // For dashboard routes, redirect to login
         return context.redirect('/login?error=unauthorized');
       }
 
@@ -35,8 +46,17 @@ export const onRequest = defineMiddleware(async (context, next) => {
         .single();
 
       if (nakesError || !nakesData) {
-        // Logout and redirect
+        // Logout
         await supabase.auth.signOut();
+        
+        // For API routes, return JSON error
+        if (pathname.startsWith('/api/')) {
+          return new Response(
+            JSON.stringify({ error: 'Akun Anda tidak terdaftar sebagai tenaga kesehatan. Log error: ' + (nakesError?.message || 'User not found in nakes_accounts') }),
+            { status: 403, headers: { 'Content-Type': 'application/json' } }
+          );
+        }
+        // For dashboard routes, redirect to login
         return context.redirect('/login?error=not_nakes');
       }
 

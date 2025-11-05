@@ -1,13 +1,16 @@
 ---
 import DashboardLayout from '../../../layouts/DashboardLayout.astro';
 import StatsCard from '../../../components/react/StatsCard';
-import { supabase } from '../../../lib/supabase';
+import { createServerSupabaseClient } from '../../../lib/supabase';
 
 const nakes = Astro.locals.nakes;
 
 if (!nakes || nakes.role !== 'admin') {
   return Astro.redirect('/dashboard?error=forbidden');
 }
+
+// Create server client with cookie support
+const supabase = createServerSupabaseClient(Astro.cookies);
 
 // Get Indonesia-wide stats
 const { data: allStats } = await supabase

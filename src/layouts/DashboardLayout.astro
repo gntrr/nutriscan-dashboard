@@ -1,6 +1,6 @@
 ---
 import '../styles/global.css';
-import { Home, Users, FileText, BarChart3, UserCheck, LogOut } from 'lucide-react';
+import { Home, Users, FileText, BarChart3, UserCheck, LogOut, ChevronDown, User } from 'lucide-react';
 
 interface Props {
   title: string;
@@ -72,7 +72,7 @@ const currentPath = Astro.url.pathname;
               <hr class="my-4 border-[#3A6249]" />
               <p class="px-4 text-xs text-[#B8E6E0] uppercase tracking-wider mb-2">Admin</p>
               
-              <a
+              {/* <a
                 href="/dashboard/admin"
                 class={`flex items-center space-x-3 px-4 py-3 rounded-lg transition-colors ${
                   currentPath === '/dashboard/admin'
@@ -82,7 +82,7 @@ const currentPath = Astro.url.pathname;
               >
                 <BarChart3 className="w-5 h-5" />
                 <span>Analytics</span>
-              </a>
+              </a> */}
 
               <a
                 href="/dashboard/admin/nakes"
@@ -99,34 +99,102 @@ const currentPath = Astro.url.pathname;
           )}
         </nav>
 
-        <!-- User Info & Logout -->
-        <div class="p-4 border-t border-[#3A6249]">
-          <div class="mb-4">
-            <p class="text-sm font-semibold">{nakes?.nama_lengkap}</p>
-            <p class="text-xs text-[#B8E6E0]">{nakes?.jabatan}</p>
-            <p class="text-xs text-[#B8E6E0] mt-1">{nakes?.wilayah_puskesmas}</p>
-            {nakes?.role === 'admin' && (
-              <span class="inline-block mt-2 px-2 py-1 bg-yellow-500 text-xs font-bold rounded">
-                ADMIN
-              </span>
-            )}
+        <!-- User Profile Dropdown (Collapsible) -->
+        <div class="p-4 border-t border-[#3A6249] relative">
+          <!-- Dropdown Content (Muncul di atas) -->
+          <div 
+            id="profileDropdown" 
+            class="absolute bottom-full left-4 right-4 mb-2 space-y-2 overflow-hidden transition-all duration-300 max-h-0 opacity-0 pointer-events-none"
+          >
+            <div class="bg-white rounded-lg shadow-2xl border border-[#3A6249] overflow-hidden">
+              <div class="px-4 py-3 bg-[#3A6249]">
+                <p class="text-xs text-[#B8E6E0] mb-1">Jabatan</p>
+                <p class="text-sm">{nakes?.jabatan}</p>
+              </div>
+              <div class="px-4 py-3 border-t border-[#3A6249]">
+                <p class="text-xs text-primary mb-1">Wilayah</p>
+                <p class="text-sm text-black">{nakes?.wilayah_puskesmas}</p>
+              </div>
+              <div class="px-4 py-3 border-t border-[#3A6249]">
+                <p class="text-xs text-primary mb-1">Email</p>
+                <p class="text-sm truncate text-black">{user?.email}</p>
+              </div>
+              <div class="p-3 border-t border-[#3A6249]">
+                <form action="/api/auth/logout" method="POST">
+                  <button
+                    type="submit"
+                    class="w-full flex items-center justify-center space-x-2 px-4 py-2.5 bg-red-600 hover:bg-red-700 rounded-lg transition-colors"
+                  >
+                    <LogOut className="w-4 h-4" />
+                    <span class="font-semibold">Logout</span>
+                  </button>
+                </form>
+              </div>
+            </div>
           </div>
-          <form action="/api/auth/logout" method="POST">
-            <button
-              type="submit"
-              class="w-full flex items-center justify-center space-x-2 px-4 py-2 bg-red-600 hover:bg-red-700 rounded-lg transition-colors"
-            >
-              <LogOut className="w-4 h-4" />
-              <span>Logout</span>
-            </button>
-          </form>
+
+          <!-- Toggle Button -->
+          <button
+            type="button"
+            id="profileToggle"
+            class="w-full flex items-center justify-between px-4 py-3 rounded-lg hover:bg-[#3A6249] transition-colors group"
+          >
+            <div class="flex items-center space-x-3">
+              <div class="w-10 h-10 rounded-full bg-[#3A6249] flex items-center justify-center">
+                <User className="w-5 h-5 text-white" />
+              </div>
+              <div class="text-left">
+                <p class="text-sm font-semibold truncate max-w-[120px]">{nakes?.nama_lengkap}</p>
+                {nakes?.role === 'admin' && (
+                  <span class="inline-block px-2 py-0.5 bg-yellow-500 text-[10px] font-bold rounded text-gray-900">
+                    ADMIN
+                  </span>
+                )}
+              </div>
+            </div>
+            <ChevronDown className="w-5 h-5 text-[#B8E6E0] transition-transform duration-200" id="chevronIcon" />
+          </button>
         </div>
       </aside>
 
       <!-- Main Content -->
-      <main class="flex-1 ml-64 p-8">
+      <main class="flex-1 ml-64 p-8 overflow-x-hidden">
         <slot />
       </main>
     </div>
+
+    <script>
+      // Profile dropdown toggle
+      const profileToggle = document.getElementById('profileToggle');
+      const profileDropdown = document.getElementById('profileDropdown');
+      const chevronIcon = document.getElementById('chevronIcon');
+
+      if (profileToggle && profileDropdown && chevronIcon) {
+        profileToggle.addEventListener('click', () => {
+          const isOpen = profileDropdown.classList.contains('max-h-0');
+          
+          if (isOpen) {
+            // Open dropdown (muncul ke atas)
+            profileDropdown.classList.remove('max-h-0', 'opacity-0', 'pointer-events-none');
+            profileDropdown.classList.add('max-h-[500px]', 'opacity-100', 'pointer-events-auto');
+            chevronIcon.style.transform = 'rotate(180deg)';
+          } else {
+            // Close dropdown
+            profileDropdown.classList.remove('max-h-[500px]', 'opacity-100', 'pointer-events-auto');
+            profileDropdown.classList.add('max-h-0', 'opacity-0', 'pointer-events-none');
+            chevronIcon.style.transform = 'rotate(0deg)';
+          }
+        });
+
+        // Close dropdown when clicking outside
+        document.addEventListener('click', (e) => {
+          if (!profileToggle.contains(e.target as Node) && !profileDropdown.contains(e.target as Node)) {
+            profileDropdown.classList.remove('max-h-[500px]', 'opacity-100', 'pointer-events-auto');
+            profileDropdown.classList.add('max-h-0', 'opacity-0', 'pointer-events-none');
+            chevronIcon.style.transform = 'rotate(0deg)';
+          }
+        });
+      }
+    </script>
   </body>
 </html>

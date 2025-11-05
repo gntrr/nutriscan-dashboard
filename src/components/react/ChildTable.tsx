@@ -168,7 +168,7 @@ export default function ChildTable({ wilayahPuskesmas }: ChildTableProps) {
 
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-2">
-                Status Gizi
+                Status Gizi (Berdasarkan IMT)
               </label>
               <select
                 value={statusFilter}
@@ -207,31 +207,31 @@ export default function ChildTable({ wilayahPuskesmas }: ChildTableProps) {
         </div>
       </div>
 
-      {/* Table with Enhanced Styling */}
+      {/* Table with Enhanced Styling & Constrained Width */}
       <div className="card overflow-hidden shadow-lg">
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gradient-to-r from-[#4A7C59] to-[#3A6249]">
+        <div className="overflow-x-auto max-w-full">
+          <table className="min-w-full divide-y divide-gray-200 table-fixed">
+            <thead className="bg-gradient-to-r from-[#4A7C59] to-[#3A6249] sticky top-0 z-10">
               <tr>
-                <th className="px-6 py-4 text-left text-xs font-bold text-white uppercase tracking-wider">
+                <th className="w-48 px-6 py-4 text-left text-xs font-bold text-white uppercase tracking-wider">
                   Nama Anak
                 </th>
-                <th className="px-6 py-4 text-left text-xs font-bold text-white uppercase tracking-wider">
+                <th className="w-44 px-6 py-4 text-left text-xs font-bold text-white uppercase tracking-wider">
                   Nama Ibu
                 </th>
-                <th className="px-6 py-4 text-left text-xs font-bold text-white uppercase tracking-wider">
+                <th className="w-32 px-6 py-4 text-left text-xs font-bold text-white uppercase tracking-wider">
                   Usia
                 </th>
-                <th className="px-6 py-4 text-left text-xs font-bold text-white uppercase tracking-wider">
+                <th className="w-36 px-6 py-4 text-left text-xs font-bold text-white uppercase tracking-wider">
                   Jenis Kelamin
                 </th>
-                <th className="px-6 py-4 text-left text-xs font-bold text-white uppercase tracking-wider">
-                  Status Gizi
+                <th className="w-40 px-6 py-4 text-left text-xs font-bold text-white uppercase tracking-wider">
+                  Status Gizi (Berdasarkan IMT)
                 </th>
-                <th className="px-6 py-4 text-left text-xs font-bold text-white uppercase tracking-wider">
+                <th className="w-40 px-6 py-4 text-left text-xs font-bold text-white uppercase tracking-wider">
                   Terakhir Checkup
                 </th>
-                <th className="px-6 py-4 text-right text-xs font-bold text-white uppercase tracking-wider">
+                <th className="w-36 px-6 py-4 text-right text-xs font-bold text-white uppercase tracking-wider">
                   Aksi
                 </th>
               </tr>
@@ -273,26 +273,26 @@ export default function ChildTable({ wilayahPuskesmas }: ChildTableProps) {
                     key={child.id} 
                     className="hover:bg-gradient-to-r hover:from-[#4A7C59]/5 hover:to-transparent transition-all duration-200 group"
                   >
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="px-6 py-4">
                       <div className="flex items-center space-x-3">
                         <div className="flex-shrink-0 h-10 w-10 rounded-full bg-gradient-to-br from-[#4A7C59] to-[#3A6249] flex items-center justify-center text-white font-bold">
                           {child.nama_balita?.[0]?.toUpperCase() || '?'}
                         </div>
-                        <div className="text-sm font-semibold text-gray-900">
+                        <div className="text-sm font-semibold text-gray-900 truncate">
                           {child.nama_balita || '-'}
                         </div>
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-600">
+                    <td className="px-6 py-4">
+                      <div className="text-sm text-gray-600 truncate">
                         {child.nama_ibu || '-'}
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                    <td className="px-6 py-4 text-sm font-medium text-gray-900 whitespace-nowrap">
                       {formatAge(child.age_months)}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                    <td className="px-6 py-4">
+                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium whitespace-nowrap ${
                         child.gender === 'male' 
                           ? 'bg-blue-100 text-blue-800' 
                           : 'bg-pink-100 text-pink-800'
@@ -300,19 +300,19 @@ export default function ChildTable({ wilayahPuskesmas }: ChildTableProps) {
                         {child.gender === 'male' ? '👦 Laki-laki' : '👧 Perempuan'}
                       </span>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={getStatusBadgeClass(child.kategori_status_gizi)}>
+                    <td className="px-6 py-4">
+                      <span className={`${getStatusBadgeClass(child.kategori_status_gizi)} whitespace-nowrap`}>
                         {child.kategori_status_gizi}
                       </span>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                    <td className="px-6 py-4 text-sm text-gray-600 whitespace-nowrap">
                       {new Date(child.last_checkup).toLocaleDateString('id-ID', {
                         day: 'numeric',
                         month: 'short',
                         year: 'numeric'
                       })}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                    <td className="px-6 py-4 text-right text-sm font-medium whitespace-nowrap">
                       <a
                         href={`/dashboard/anak/${child.id}`}
                         className="inline-flex items-center space-x-1 text-[#4A7C59] hover:text-[#3A6249] font-semibold group-hover:underline transition-all"

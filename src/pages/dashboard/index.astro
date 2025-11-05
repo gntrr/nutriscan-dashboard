@@ -2,7 +2,7 @@
 import DashboardLayout from '../../layouts/DashboardLayout.astro';
 import StatsCard from '../../components/react/StatsCard';
 import StatusGiziChart from '../../components/react/StatusGiziChart';
-import { supabase } from '../../lib/supabase';
+import { createServerSupabaseClient } from '../../lib/supabase';
 import { 
   Users, 
   AlertTriangle, 
@@ -23,15 +23,11 @@ if (!nakes) {
   return Astro.redirect('/login');
 }
 
-// Get dashboard overview stats
-const { data: stats, error: statsError } = await supabase
-  .from('nakes_dashboard_overview')
-  .select('*')
-  .eq('wilayah_puskesmas', nakes.wilayah_puskesmas)
-  .single();
+// Create server client with cookie support
+const supabase = createServerSupabaseClient(Astro.cookies);
 
-// Default values if no data
-const dashboardStats = stats || {
+// Get dashboard overview stats
+let dashboardStats = {
   total_anak: 0,
   gizi_buruk: 0,
   gizi_kurang: 0,
@@ -42,13 +38,50 @@ const dashboardStats = stats || {
   jumlah_perempuan: 0,
 };
 
+if (nakes.role === 'admin') {
+  // Admin: ambil semua data dan hitung total
+  const { data: allStats, error: statsError } = await supabase
+    .from('nakes_dashboard_overview')
+    .select('*');
+  
+  if (allStats && allStats.length > 0) {
+    dashboardStats = {
+      total_anak: allStats.reduce((sum, stat) => sum + (stat.total_anak || 0), 0),
+      gizi_buruk: allStats.reduce((sum, stat) => sum + (stat.gizi_buruk || 0), 0),
+      gizi_kurang: allStats.reduce((sum, stat) => sum + (stat.gizi_kurang || 0), 0),
+      gizi_baik: allStats.reduce((sum, stat) => sum + (stat.gizi_baik || 0), 0),
+      gizi_lebih: allStats.reduce((sum, stat) => sum + (stat.gizi_lebih || 0), 0),
+      rata_rata_usia_bulan: allStats.reduce((sum, stat) => sum + (stat.rata_rata_usia_bulan || 0), 0) / allStats.length,
+      jumlah_laki_laki: allStats.reduce((sum, stat) => sum + (stat.jumlah_laki_laki || 0), 0),
+      jumlah_perempuan: allStats.reduce((sum, stat) => sum + (stat.jumlah_perempuan || 0), 0),
+    };
+  }
+} else {
+  // Nakes biasa: ambil data wilayah mereka saja
+  const { data: stats, error: statsError } = await supabase
+    .from('nakes_dashboard_overview')
+    .select('*')
+    .eq('wilayah_puskesmas', nakes.wilayah_puskesmas)
+    .single();
+  
+  if (stats) {
+    dashboardStats = stats;
+  }
+}
+
 // Get recent children updates (last 5)
-const { data: recentChildren } = await supabase
+let recentChildrenQuery = supabase
   .from('nakes_children_list')
-  .select('nama_balita, age_months, kategori_status_gizi, last_checkup')
-  .eq('wilayah_puskesmas', nakes.wilayah_puskesmas)
+  .select('nama_balita, age_months, kategori_status_gizi, last_checkup, wilayah_puskesmas')
   .order('last_checkup', { ascending: false })
   .limit(5);
+
+// Filter by wilayah for non-admin
+if (nakes.role !== 'admin') {
+  recentChildrenQuery = recentChildrenQuery.eq('wilayah_puskesmas', nakes.wilayah_puskesmas);
+}
+
+const { data: recentChildren } = await recentChildrenQuery;
 ---
 
 <DashboardLayout title="Dashboard">
@@ -76,14 +109,14 @@ const { data: recentChildren } = await supabase
           <p class="text-[#B8E6E0] text-lg mb-2">
             Selamat datang kembali, <span class="font-bold text-white">{nakes.nama_lengkap}</span> 👋
           </p>
-          <div class="flex items-center space-x-4 text-sm text-[#B8E6E0]/90">
+          <!-- <div class="flex items-center space-x-4 text-sm text-[#B8E6E0]/90">
             <div class="flex items-center space-x-2">
               <MapPin client:load className="w-4 h-4" />
               <span>{nakes.wilayah_puskesmas}</span>
             </div>
             <span class="text-white/50">•</span>
             <span>{nakes.kota}, {nakes.provinsi}</span>
-          </div>
+          </div> -->
         </div>
         
         <div class="hidden lg:block">
@@ -99,7 +132,7 @@ const { data: recentChildren } = await supabase
     </div>
 
     <!-- Stats Cards -->
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+    <!-- <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
       <StatsCard
         client:load
         title="Total Anak"
@@ -131,12 +164,12 @@ const { data: recentChildren } = await supabase
         color="green"
         iconComponent={CheckCircle}
       />
-    </div>
+    </div> -->
 
     <!-- Charts and Details -->
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+    <!-- <div class="grid grid-cols-1 lg:grid-cols-2 gap-6"> -->
       <!-- Status Gizi Chart -->
-      <div class="card shadow-lg hover:shadow-2xl transition-shadow duration-300">
+      <!-- <div class="card shadow-lg hover:shadow-2xl transition-shadow duration-300">
         <div class="flex items-center justify-between mb-6">
           <h2 class="text-2xl font-bold text-gray-900">Distribusi Status Gizi</h2>
           <div class="w-10 h-10 bg-[#B8E6E0] rounded-lg flex items-center justify-center">
@@ -152,10 +185,10 @@ const { data: recentChildren } = await supabase
             gizi_lebih: dashboardStats.gizi_lebih,
           }}
         />
-      </div>
+      </div> -->
 
       <!-- Additional Stats -->
-      <div class="card shadow-lg hover:shadow-2xl transition-shadow duration-300">
+      <!-- <div class="card shadow-lg hover:shadow-2xl transition-shadow duration-300">
         <div class="flex items-center justify-between mb-6">
           <h2 class="text-2xl font-bold text-gray-900">Statistik Tambahan</h2>
           <div class="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
@@ -214,8 +247,8 @@ const { data: recentChildren } = await supabase
             </div>
           </div>
         </div>
-      </div>
-    </div>
+      </div> -->
+    <!-- </div> -->
 
     <!-- Recent Updates -->
     {recentChildren && recentChildren.length > 0 && (

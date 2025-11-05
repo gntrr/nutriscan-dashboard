@@ -1,6 +1,6 @@
 ---
 import DashboardLayout from '../../../layouts/DashboardLayout.astro';
-import { supabase } from '../../../lib/supabase';
+import { createServerSupabaseClient } from '../../../lib/supabase';
 
 const nakes = Astro.locals.nakes;
 const { id } = Astro.params;
@@ -12,6 +12,9 @@ if (!nakes) {
 if (!id) {
   return Astro.redirect('/dashboard/anak');
 }
+
+// Create server client with cookie support
+const supabase = createServerSupabaseClient(Astro.cookies);
 
 // Get child data
 const { data: childData, error: childError } = await supabase
@@ -67,6 +70,56 @@ const getStatusColor = (status: string) => {
   if (lower.includes('lebih') || lower.includes('obesitas')) return 'text-blue-600 bg-blue-50 border-blue-200';
   return 'text-green-600 bg-green-50 border-green-200';
 };
+
+// Helper function untuk menentukan kategori berdasarkan Z-Score
+const getZScoreCategory = (zscore: number | null, type: 'bbu' | 'pbu' | 'bbpb' | 'imt') => {
+  if (zscore === null || zscore === undefined) return { kategori: '-', ambang: '-' };
+  
+  // Berdasarkan standar WHO
+  if (type === 'bbu') {
+    // BB/U (Berat Badan menurut Umur)
+    if (zscore < -3) return { kategori: 'Berat Badan Sangat Kurang', ambang: '< -3 SD' };
+    if (zscore < -2) return { kategori: 'Berat Badan Kurang', ambang: '-3 SD s/d < -2 SD' };
+    if (zscore <= 1) return { kategori: 'Berat Badan Normal', ambang: '-2 SD s/d +1 SD' };
+    return { kategori: 'Risiko Berat Badan Lebih', ambang: '> +1 SD' };
+  }
+  
+  if (type === 'pbu') {
+    // PB/U atau TB/U (Tinggi Badan menurut Umur)
+    if (zscore < -3) return { kategori: 'Sangat Pendek', ambang: '< -3 SD' };
+    if (zscore < -2) return { kategori: 'Pendek', ambang: '-3 SD s/d < -2 SD' };
+    if (zscore <= 3) return { kategori: 'Normal', ambang: '-2 SD s/d +3 SD' };
+    return { kategori: 'Tinggi', ambang: '> +3 SD' };
+  }
+  
+  if (type === 'bbpb') {
+    // BB/PB atau BB/TB (Berat Badan menurut Tinggi Badan)
+    if (zscore < -3) return { kategori: 'Gizi Buruk (Severely Wasted)', ambang: '< -3 SD' };
+    if (zscore < -2) return { kategori: 'Gizi Kurang (Wasted)', ambang: '-3 SD s/d < -2 SD' };
+    if (zscore <= 1) return { kategori: 'Gizi Baik (Normal)', ambang: '-2 SD s/d +1 SD' };
+    if (zscore <= 2) return { kategori: 'Berisiko Gizi Lebih (Possible Risk of Overweight)', ambang: '+1 SD s/d +2 SD' };
+    if (zscore <= 3) return { kategori: 'Gizi Lebih (Overweight)', ambang: '+2 SD s/d +3 SD' };
+    return { kategori: 'Obesitas (Obese)', ambang: '> +3 SD' };
+  }
+  
+  if (type === 'imt') {
+    // IMT/U (Indeks Massa Tubuh menurut Umur)
+    if (zscore < -3) return { kategori: 'Gizi Buruk (Severely Wasted)', ambang: '< -3 SD' };
+    if (zscore < -2) return { kategori: 'Gizi Kurang (Wasted)', ambang: '-3 SD s/d < -2 SD' };
+    if (zscore <= 1) return { kategori: 'Gizi Baik (Normal)', ambang: '-2 SD s/d +1 SD' };
+    if (zscore <= 2) return { kategori: 'Berisiko Gizi Lebih (Possible Risk of Overweight)', ambang: '+1 SD s/d +2 SD' };
+    if (zscore <= 3) return { kategori: 'Gizi Lebih (Overweight)', ambang: '+2 SD s/d +3 SD' };
+    return { kategori: 'Obesitas (Obese)', ambang: '> +3 SD' };
+  }
+  
+  return { kategori: '-', ambang: '-' };
+};
+
+// Hitung kategori untuk setiap parameter
+const bbuCategory = getZScoreCategory(childData.z_score_bbu, 'bbu');
+const pbuCategory = getZScoreCategory(childData.z_score_pbu, 'pbu');
+const bbpbCategory = getZScoreCategory(childData.z_score_bbpb, 'bbpb');
+const imtCategory = getZScoreCategory(childData.z_score_imt, 'imt');
 ---
 
 <DashboardLayout title={`Detail - ${childData.child_name || 'Anak'}`}>
@@ -180,41 +233,57 @@ const getStatusColor = (status: string) => {
 
       <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <!-- BB/U -->
-        <div class={`border-2 rounded-lg p-4 ${getStatusColor(childData.kategori_status_gizi)}`}>
-          <h3 class="text-sm font-medium mb-2">BB/U (Berat Badan menurut Umur)</h3>
+        <div class={`border-2 rounded-lg p-4 ${getStatusColor(bbuCategory.kategori)}`}>
+          <h3 class="text-sm font-medium mb-2">BB/U <span class="text-xs block">(Berat Badan menurut Umur)</span></h3>
           <p class="text-2xl font-bold mb-1">{childData.z_score_bbu?.toFixed(2) || '-'}</p>
-          <p class="text-xs">Z-Score</p>
-          <p class="text-sm font-semibold mt-2">{childData.ambang_batas_z_score || '-'}</p>
+          <p class="text-xs mb-3">Z-Score</p>
+          <div class="border-t pt-2">
+            <p class="text-xs text-gray-600 mb-1">Ambang Batas</p>
+            <p class="text-sm font-semibold">{bbuCategory.ambang}</p>
+            <p class="text-xs font-semibold mt-2">{bbuCategory.kategori}</p>
+          </div>
         </div>
 
         <!-- PB/U atau TB/U -->
-        <div class={`border-2 rounded-lg p-4 ${getStatusColor(childData.kategori_status_gizi)}`}>
+        <div class={`border-2 rounded-lg p-4 ${getStatusColor(pbuCategory.kategori)}`}>
           <h3 class="text-sm font-medium mb-2">
             {childData.age_months < 24 ? 'PB/U' : 'TB/U'}
             <span class="text-xs block">(Tinggi menurut Umur)</span>
           </h3>
           <p class="text-2xl font-bold mb-1">{childData.z_score_pbu?.toFixed(2) || '-'}</p>
-          <p class="text-xs">Z-Score</p>
-          <p class="text-sm font-semibold mt-2">{childData.ambang_batas_z_score || '-'}</p>
+          <p class="text-xs mb-3">Z-Score</p>
+          <div class="border-t pt-2">
+            <p class="text-xs text-gray-600 mb-1">Ambang Batas</p>
+            <p class="text-sm font-semibold">{pbuCategory.ambang}</p>
+            <p class="text-xs font-semibold mt-2">{pbuCategory.kategori}</p>
+          </div>
         </div>
 
         <!-- BB/PB atau BB/TB -->
-        <div class={`border-2 rounded-lg p-4 ${getStatusColor(childData.kategori_status_gizi)}`}>
+        <div class={`border-2 rounded-lg p-4 ${getStatusColor(bbpbCategory.kategori)}`}>
           <h3 class="text-sm font-medium mb-2">
             {childData.age_months < 24 ? 'BB/PB' : 'BB/TB'}
             <span class="text-xs block">(Berat menurut Tinggi)</span>
           </h3>
           <p class="text-2xl font-bold mb-1">{childData.z_score_bbpb?.toFixed(2) || '-'}</p>
-          <p class="text-xs">Z-Score</p>
-          <p class="text-sm font-semibold mt-2">{childData.ambang_batas_z_score || '-'}</p>
+          <p class="text-xs mb-3">Z-Score</p>
+          <div class="border-t pt-2">
+            <p class="text-xs text-gray-600 mb-1">Ambang Batas</p>
+            <p class="text-sm font-semibold">{bbpbCategory.ambang}</p>
+            <p class="text-xs font-semibold mt-2">{bbpbCategory.kategori}</p>
+          </div>
         </div>
 
         <!-- IMT/U -->
-        <div class={`border-2 rounded-lg p-4 ${getStatusColor(childData.kategori_status_gizi)}`}>
+        <div class={`border-2 rounded-lg p-4 ${getStatusColor(imtCategory.kategori)}`}>
           <h3 class="text-sm font-medium mb-2">IMT/U <span class="text-xs block">(IMT menurut Umur)</span></h3>
           <p class="text-2xl font-bold mb-1">{childData.z_score_imt?.toFixed(2) || '-'}</p>
-          <p class="text-xs">Z-Score</p>
-          <p class="text-sm font-semibold mt-2">{childData.kategori_status_gizi || '-'}</p>
+          <p class="text-xs mb-3">Z-Score</p>
+          <div class="border-t pt-2">
+            <p class="text-xs text-gray-600 mb-1">Ambang Batas</p>
+            <p class="text-sm font-semibold">{imtCategory.ambang}</p>
+            <p class="text-xs font-semibold mt-2">{imtCategory.kategori}</p>
+          </div>
         </div>
       </div>
     </div>

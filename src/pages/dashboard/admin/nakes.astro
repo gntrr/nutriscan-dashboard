@@ -1,12 +1,15 @@
 ---
 import DashboardLayout from '../../../layouts/DashboardLayout.astro';
-import { supabase } from '../../../lib/supabase';
+import { createServerSupabaseClient } from '../../../lib/supabase';
 
 const nakes = Astro.locals.nakes;
 
 if (!nakes || nakes.role !== 'admin') {
   return Astro.redirect('/dashboard?error=forbidden');
 }
+
+// Create server client with cookie support
+const supabase = createServerSupabaseClient(Astro.cookies);
 
 // Get all nakes accounts
 const { data: allNakes } = await supabase
